@@ -34,8 +34,9 @@
 enum EngineerHelice
 {
     // Spells
-    SPELL_EXPLODE_CRYSTAL       = 62487,
-    SPELL_FLAMES                = 64561,
+    SPELL_DETONATE_1            = 52369,
+    SPELL_DETONATE_2            = 52371,
+    SPELL_EXPLOSION             = 46419,
 
     // Yells
     SAY_WP_1                    = 0,
@@ -50,109 +51,147 @@ enum EngineerHelice
     QUEST_DISASTER              = 12688
 };
 
-class npc_engineer_helice : public CreatureScript
+struct npc_engineer_helice : public EscortAI
 {
-public:
-    npc_engineer_helice() : CreatureScript("npc_engineer_helice") { }
+    npc_engineer_helice(Creature* creature) : EscortAI(creature) {  }
 
-    struct npc_engineer_heliceAI : public EscortAI
+    void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
     {
-        npc_engineer_heliceAI(Creature* creature) : EscortAI(creature)
+        Player* player = GetPlayerForEscort();
+
+        switch (waypointId)
         {
-            Initialize();
-        }
-
-        void Initialize()
-        {
-            m_uiChatTimer = 4000;
-        }
-
-        uint32 m_uiChatTimer;
-
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
-        {
-            Player* player = GetPlayerForEscort();
-
-            switch (waypointId)
-            {
-                case 0:
-                    Talk(SAY_WP_2);
-                    break;
-                case 1:
-                    Talk(SAY_WP_3);
-                    me->CastSpell({ 5918.33f, 5372.91f, -98.770f }, SPELL_EXPLODE_CRYSTAL, true);
-                    me->SummonGameObject(184743, 5918.33f, 5372.91f, -98.770f, 0, QuaternionData(), 3s, GO_SUMMON_TIMED_DESPAWN);
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_LAUGH);
-                    break;
-                case 2:
-                    Talk(SAY_WP_4);
-                    break;
-                case 7:
-                    Talk(SAY_WP_5);
-                    break;
-                case 8:
-                    me->CastSpell({ 5887.37f, 5379.39f, -91.289f }, SPELL_EXPLODE_CRYSTAL, true);
-                    me->SummonGameObject(184743, 5887.37f, 5379.39f, -91.289f, 0, QuaternionData(), 3s, GO_SUMMON_TIMED_DESPAWN);
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_LAUGH);
-                    break;
-                case 9:
-                    Talk(SAY_WP_6);
-                    break;
-                case 13:
-                    if (player)
-                    {
-                        player->GroupEventHappens(QUEST_DISASTER, me);
-                        Talk(SAY_WP_7);
-                    }
-                    break;
-            }
-        }
-
-        void Reset() override
-        {
-            Initialize();
-        }
-
-        void JustDied(Unit* /*killer*/) override
-        {
-            if (HasEscortState(STATE_ESCORT_ESCORTING))
-            {
-                if (Player* player = GetPlayerForEscort())
-                    player->FailQuest(QUEST_DISASTER);
-            }
-        }
-
-        void UpdateAI(uint32 uiDiff) override
-        {
-            EscortAI::UpdateAI(uiDiff);
-
-            if (HasEscortState(STATE_ESCORT_ESCORTING))
-            {
-                if (m_uiChatTimer <= uiDiff)
+            case 0:
+                Talk(SAY_WP_2);
+                break;
+            case 1:
+                Talk(SAY_WP_3);
+                DoCast(SPELL_DETONATE_1);
+                break;
+            case 7:
+                Talk(SAY_WP_5);
+                break;
+            case 8:
+                DoCast(SPELL_DETONATE_2);
+                break;
+            case 9:
+                Talk(SAY_WP_6);
+                break;
+            case 13:
+                if (player)
                 {
-                    m_uiChatTimer = 12000;
+                    player->GroupEventHappens(QUEST_DISASTER, me);
+                    Talk(SAY_WP_7);
                 }
-                else
-                    m_uiChatTimer -= uiDiff;
-            }
+                break;
+            default:
+                break;
         }
+    }
 
-        void QuestAccept(Player* player, Quest const* quest) override
-        {
-            if (quest->GetQuestId() == QUEST_DISASTER)
-            {
-                me->GetMotionMaster()->MoveJumpTo(0, 0.4f, 0.4f);
-                me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
-
-                Start(false, false, player->GetGUID());
-                Talk(SAY_WP_1);
-            }
-        }
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
+    void JustDied(Unit* /*killer*/) override
     {
-        return new npc_engineer_heliceAI(creature);
+        if (HasEscortState(STATE_ESCORT_ESCORTING))
+        {
+            if (Player* player = GetPlayerForEscort())
+                player->FailQuest(QUEST_DISASTER);
+        }
+    }
+
+    void QuestAccept(Player* player, Quest const* quest) override
+    {
+        if (quest->GetQuestId() == QUEST_DISASTER)
+        {
+            me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
+
+            Start(false, false, player->GetGUID());
+            Talk(SAY_WP_1);
+        }
+    }
+};
+
+class spell_q12688_detonate_1 : public SpellScript
+{
+    PrepareSpellScript(spell_q12688_detonate_1);
+
+    static constexpr uint32 GO_FLAMES = 182071;
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_EXPLOSION });
+    }
+
+    void HandleDummyEffect(SpellEffIndex /* effIndex */)
+    {
+        if (Unit* target = GetHitUnit())
+        {
+            target->CastSpell(target, SPELL_EXPLOSION);
+
+            static const struct
+            {
+                Position Pos;
+                QuaternionData Quat;
+            } Flames[] =
+                    {
+                            {{ 5921.5337f, 5371.778f,  -96.338776f, 0.f }, { 0.f, 0.f, 0.6883545f,   0.72537446f }},
+                            {{ 5919.418f,  5366.918f,  -96.091125f, 0.f }, { 0.f, 0.f, 0.60876083f,  0.7933538f }},
+                            {{ 5920.2563f, 5372.4136f, -98.85827f,  0.f }, { 0.f, 0.f, -0.32556725f, 0.94551885f }}
+                    };
+
+            for (auto flame : Flames)
+                target->SummonGameObject(GO_FLAMES, flame.Pos, flame.Quat, 20s, GO_SUMMON_TIMED_DESPAWN);
+        }
+    }
+
+    void HandleAfterHit()
+    {
+        if (Creature* caster = GetCaster()->ToCreature())
+            caster->AI()->Talk(EngineerHelice::SAY_WP_4);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_q12688_detonate_1::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
+        AfterHit += SpellHitFn(spell_q12688_detonate_1::HandleAfterHit);
+    }
+};
+
+class spell_q12688_detonate_2 : public SpellScript
+{
+    PrepareSpellScript(spell_q12688_detonate_2);
+
+    static constexpr uint32 GO_FLAMES = 182071;
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_EXPLOSION });
+    }
+
+    void HandleDummyEffect(SpellEffIndex /* effIndex */)
+    {
+        if (Unit* target = GetHitUnit())
+        {
+            target->CastSpell(target, SPELL_EXPLOSION);
+
+            static const struct
+            {
+                Position Pos;
+                QuaternionData Quat;
+            } Flames[] =
+                    {
+                            {{ 5888.6816f, 5377.422f,  -92.617165f, 0.f }, { 0.f, 0.f, 0.9612608f,   0.2756405f }},
+                            {{ 5886.481f,  5379.052f,  -92.97995f,  0.f }, { 0.f, 0.f, 0.41469288f,  0.90996146f }},
+                            {{ 5887.204f,  5381.1753f, -93.50007f,  0.f }, { 0.f, 0.f, 0.061048508f, 0.9981348f }}
+                    };
+
+            for (auto flame : Flames)
+                target->SummonGameObject(GO_FLAMES, flame.Pos, flame.Quat, 20s, GO_SUMMON_TIMED_DESPAWN);
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_q12688_detonate_2::HandleDummyEffect, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
@@ -688,7 +727,9 @@ class spell_q12611_deathbolt : public SpellScript
 
 void AddSC_sholazar_basin()
 {
-    new npc_engineer_helice();
+    RegisterCreatureAI(npc_engineer_helice);
+    RegisterSpellScript(spell_q12688_detonate_1);
+    RegisterSpellScript(spell_q12688_detonate_2);
     new npc_jungle_punch_target();
     new spell_q12620_the_lifewarden_wrath();
     new spell_q12589_shoot_rjr();
