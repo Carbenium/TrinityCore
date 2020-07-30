@@ -26,6 +26,7 @@
 #include "SpellAuras.h"
 #include "SpellScript.h"
 #include "Vehicle.h"
+#include "GameObject.h"
 
 /*######
 ## npc_engineer_helice
@@ -115,6 +116,7 @@ class spell_q12688_detonate_1 : public SpellScript
     PrepareSpellScript(spell_q12688_detonate_1);
 
     static constexpr uint32 GO_FLAMES = 182071;
+    static constexpr uint32 SPAWN_GROUP_FLAMES = 67;
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
@@ -127,19 +129,11 @@ class spell_q12688_detonate_1 : public SpellScript
         {
             target->CastSpell(target, SPELL_EXPLOSION);
 
-            static const struct
-            {
-                Position Pos;
-                QuaternionData Quat;
-            } Flames[] =
-                    {
-                            {{ 5921.5337f, 5371.778f,  -96.338776f, 0.f }, { 0.f, 0.f, 0.6883545f,   0.72537446f }},
-                            {{ 5919.418f,  5366.918f,  -96.091125f, 0.f }, { 0.f, 0.f, 0.60876083f,  0.7933538f }},
-                            {{ 5920.2563f, 5372.4136f, -98.85827f,  0.f }, { 0.f, 0.f, -0.32556725f, 0.94551885f }}
-                    };
-
-            for (auto flame : Flames)
-                target->SummonGameObject(GO_FLAMES, flame.Pos, flame.Quat, 20s, GO_SUMMON_TIMED_DESPAWN);
+            std::vector<WorldObject*> flames;
+            target->GetMap()->SpawnGroupSpawn(SPAWN_GROUP_FLAMES, true, false, &flames);
+            target->GetMap()->SetSpawnGroupInactive(SPAWN_GROUP_FLAMES);
+            for (WorldObject* flame : flames)
+                dynamic_cast<GameObject*>(flame)->DespawnOrUnsummon(20s);
         }
     }
 
@@ -161,6 +155,7 @@ class spell_q12688_detonate_2 : public SpellScript
     PrepareSpellScript(spell_q12688_detonate_2);
 
     static constexpr uint32 GO_FLAMES = 182071;
+    static constexpr uint32 SPAWN_GROUP_FLAMES = 68;
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
@@ -173,19 +168,11 @@ class spell_q12688_detonate_2 : public SpellScript
         {
             target->CastSpell(target, SPELL_EXPLOSION);
 
-            static const struct
-            {
-                Position Pos;
-                QuaternionData Quat;
-            } Flames[] =
-                    {
-                            {{ 5888.6816f, 5377.422f,  -92.617165f, 0.f }, { 0.f, 0.f, 0.9612608f,   0.2756405f }},
-                            {{ 5886.481f,  5379.052f,  -92.97995f,  0.f }, { 0.f, 0.f, 0.41469288f,  0.90996146f }},
-                            {{ 5887.204f,  5381.1753f, -93.50007f,  0.f }, { 0.f, 0.f, 0.061048508f, 0.9981348f }}
-                    };
-
-            for (auto flame : Flames)
-                target->SummonGameObject(GO_FLAMES, flame.Pos, flame.Quat, 20s, GO_SUMMON_TIMED_DESPAWN);
+            std::vector<WorldObject*> flames;
+            target->GetMap()->SpawnGroupSpawn(SPAWN_GROUP_FLAMES, true, false, &flames);
+            target->GetMap()->SetSpawnGroupInactive(SPAWN_GROUP_FLAMES);
+            for (WorldObject* flame : flames)
+                dynamic_cast<GameObject*>(flame)->DespawnOrUnsummon(20s);
         }
     }
 
